@@ -16,6 +16,7 @@
 
 import socket
 import struct
+import ssl
 
 from qpython import MetaData, CONVERSION_OPTIONS
 from qpython.qtype import QException
@@ -150,7 +151,17 @@ class QConnection(object):
     def _init_socket(self):
         '''Initialises the socket used for communicating with a q service,'''
         try:
-            self._connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            pemfile = self._options["pemfile"]        
+            if pemfile:
+                context = ssl.SSLContext()
+                context.verify_mode = ssl.CERT_REQUIRED
+                context.check_hostname = True
+                context.load_default_certs()
+                context.load_verify_locations(pemfile)
+                sock = context.wrap_socket(sock, server_hostname=self.host)
+
+            self._connection = sock
             self._connection.connect((self.host, self.port))
             self._connection.settimeout(self.timeout)
             self._connection_file = self._connection.makefile('b')
